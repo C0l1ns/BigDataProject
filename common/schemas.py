@@ -13,7 +13,7 @@ AKAS_SCHEMA = t.StructType(
     ]
 )
 
-TITTLE_BASICS_SCHEMA = t.StructType(
+TITLE_BASICS_SCHEMA = t.StructType(
     [
         t.StructField("tconst", t.StringType()),
         t.StructField("titleType", t.StringType()),
@@ -51,7 +51,7 @@ PRINCIPALS = t.StructType(
         t.StructField("nconst", t.StringType()),
         t.StructField("category", t.StringType()),
         t.StructField("job", t.StringType()),
-        t.StructField("carachers", t.StringType()),
+        t.StructField("characters", t.StringType()),
     ]
 )
 

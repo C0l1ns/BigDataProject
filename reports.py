@@ -31,5 +31,22 @@ def popular_movies_by_country():
     pass
 
 
-def average_rate_per_genre():
-    pass
+def average_rate_per_genre(context: dict[str, DataFrame]) -> DataFrame:
+    title_basics = context["title_basics"]
+    ratings = context["ratings"]
+    title_basics_transformed = (
+        title_basics
+        .withColumn("genre", f.split("genres", ","))
+        .drop("genres")
+        .withColumn("genre", f.explode("genre"))
+    )
+
+    df = (
+        title_basics_transformed.alias("tb")
+        .filter(f.col("tb.genre") != "\\N")
+        .join(ratings.alias("r"), f.col("r.tconst") == f.col("tb.tconst"))
+        .groupBy("tb.genre")
+        .avg("r.averageRating")
+    )
+
+    return df
