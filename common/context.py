@@ -2,7 +2,7 @@ import os
 from pyspark.sql import SparkSession
 from common.schemas import (
     AKAS_SCHEMA,
-    TITTLE_BASICS_SCHEMA,
+    TITLE_BASICS_SCHEMA,
     RATINGS_SCHEMA,
     CREW_SCHEMA,
     EPISODES_SCHEMA,
@@ -31,5 +31,5 @@ def populate_context(spark, context):
     context["principals"] = load_dataframe(spark, PRINCIPALS, "principals.tsv")
     context["ratings"] = load_dataframe(spark, RATINGS_SCHEMA, "ratings.tsv")
     context["title_basics"] = load_dataframe(
-        spark, TITTLE_BASICS_SCHEMA, "title_basics.tsv"
+        spark, TITLE_BASICS_SCHEMA, "title_basics.tsv"
     )
