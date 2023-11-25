@@ -1,6 +1,5 @@
 import pyspark.sql.types as t
 
-
 AKAS_SCHEMA = t.StructType(
     [
         t.StructField("titleId", t.StringType()),
@@ -36,7 +35,7 @@ CREW_SCHEMA = t.StructType(
     ]
 )
 
-TITTLE_EPISODES_SCHEMA = t.StructType(
+EPISODES_SCHEMA = t.StructType(
     [
         t.StructField("tconst", t.StringType()),
         t.StructField("parentTconst", t.StringType()),
@@ -45,7 +44,7 @@ TITTLE_EPISODES_SCHEMA = t.StructType(
     ]
 )
 
-TITTLE_PRINCIPALS = t.StructType(
+PRINCIPALS = t.StructType(
     [
         t.StructField("tconst", t.StringType()),
         t.StructField("ordering", t.IntegerType()),
@@ -56,21 +55,21 @@ TITTLE_PRINCIPALS = t.StructType(
     ]
 )
 
-TITLE_RATINGS_SCHEMA = t.StructType(
+RATINGS_SCHEMA = t.StructType(
     [
-        t.StructField("tconst", t.StringType(), True),
-        t.StructField("averageRating", t.DoubleType(), True),
-        t.StructField("numVotes", t.IntegerType(), True),
+        t.StructField("tconst", t.StringType()),
+        t.StructField("averageRating", t.DoubleType()),
+        t.StructField("numVotes", t.IntegerType()),
     ]
 )
 
 NAME_BASICS_SCHEMA = t.StructType(
     [
-        t.StructField("nconst", t.StringType(), True),
-        t.StructField("primaryName", t.StringType(), True),
-        t.StructField("birthYear", t.IntegerType(), True),
-        t.StructField("deathYear", t.IntegerType(), True),
-        t.StructField("primaryProfession", t.ArrayType(t.StringType(), True)),
-        t.StructField("knownForTitles", t.ArrayType(t.StringType(), True)),
+        t.StructField("nconst", t.StringType()),
+        t.StructField("primaryName", t.StringType()),
+        t.StructField("birthYear", t.IntegerType()),
+        t.StructField("deathYear", t.IntegerType()),
+        t.StructField("primaryProfession", t.StringType()),
+        t.StructField("knownForTitles", t.StringType()),
     ]
 )
