@@ -1,6 +1,6 @@
 from pyspark.sql import SparkSession
 
-from utils.context import populate_context
+from common.context import populate_context
 from reports import popular_movies
 
 

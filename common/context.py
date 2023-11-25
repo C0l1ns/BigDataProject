@@ -1,6 +1,6 @@
 import os
 from pyspark.sql import SparkSession
-from utils.schemas import (
+from common.schemas import (
     AKAS_SCHEMA,
     TITTLE_BASICS_SCHEMA,
     RATINGS_SCHEMA,
