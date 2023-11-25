@@ -1,16 +1,12 @@
-from pyspark.sql import SparkSession, Row
-from schemas import AKAS_SCHEMA, TITTLE_BASICS_SCHEMA
+from pyspark.sql import SparkSession
+
+from utils.context import populate_context
+from reports import popular_movies
+
 
 spark = SparkSession.builder.getOrCreate()
 
-df = (
-    spark.read.format("csv")
-    .option("delimiter", "\t")
-    .option("inferSchema", True)
-    .option("header", True)
-    .schema(TITTLE_BASICS_SCHEMA)
-    .load("./datasets/title_basics.tsv")
-)
+context = {}
+populate_context(spark, context)
 
-df.printSchema()
-df.show(n=100)
+popular_movies(context).show()
