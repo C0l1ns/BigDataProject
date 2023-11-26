@@ -1,7 +1,7 @@
 from pyspark.sql import SparkSession
 
 from common.context import populate_context
-from reports import popular_movies, average_rate_per_genre
+from reports import *
 
 
 spark = SparkSession.builder.getOrCreate()
@@ -11,3 +11,4 @@ populate_context(spark, context)
 
 popular_movies(context).show()
 average_rate_per_genre(context).show()
+average_episodes_per_rating(context).show(n=91)

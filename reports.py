@@ -50,3 +50,34 @@ def average_rate_per_genre(context: dict[str, DataFrame]) -> DataFrame:
     )
 
     return df
+
+# find average ammount of episodes in tv-show's season grouped by it's rating
+# also added total number of episodes analyed grouped by rating for comparison
+def average_episodes_per_rating(context: dict[str, DataFrame]) -> DataFrame:
+    title_basics = context["title_basics"]
+    episode = context["episode"]
+    ratings = context["ratings"]
+
+    df = (
+        title_basics.alias("tb")
+        .join(episode.alias("e"), f.col("tb.tconst") == f.col("e.parentTconst"))
+        .join(ratings.alias("r"), f.col("tb.tconst") == f.col("r.tconst"))
+        .groupBy("r.averageRating", "tb.tconst", "e.seasonNumber")
+        .agg(
+            f.avg("e.episodeNumber").alias("AverageEpisodes"),
+            f.count("e.episodeNumber").alias("NumberOfEpisodes"),
+        )
+        .groupBy("r.averageRating")
+        .agg(
+            f.avg("AverageEpisodes").alias("AverageEpisodes"),
+            f.sum("NumberOfEpisodes").alias("NumberOfEpisodes"),
+        )
+        .select(
+            f.col("r.averageRating").alias("AverageRating"),
+            f.round("AverageEpisodes", 1).alias("AverageEpisodes"),
+            f.round("NumberOfEpisodes", 1).alias("NumberOfEpisodes"),
+        )
+        .orderBy(f.desc("r.averageRating"))
+    )
+
+    return df
