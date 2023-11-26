@@ -73,9 +73,9 @@ def average_episodes_per_rating(context: dict[str, DataFrame]) -> DataFrame:
             f.sum("NumberOfEpisodes").alias("NumberOfEpisodes"),
         )
         .select(
-            f.col("r.averageRating").alias("AverageRating"),
-            f.round("AverageEpisodes", 1).alias("AverageEpisodes"),
-            f.round("NumberOfEpisodes", 1).alias("NumberOfEpisodes"),
+            f.col("r.averageRating").alias("rating"),
+            f.round("AverageEpisodes", 1).alias("averageEpisodes"),
+            f.round("NumberOfEpisodes", 1).alias("numberOfEpisodes"),
         )
         .orderBy(f.desc("r.averageRating"))
     )
