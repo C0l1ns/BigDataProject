@@ -27,8 +27,13 @@ def popular_movies(context: dict[str, DataFrame]) -> DataFrame:
     return df
 
 
-def popular_movies_by_country():
-    pass
+def popular_movies_by_country(context: dict[str, DataFrame]) -> DataFrame:
+    title_basics = context["title_basics"]
+
+    df = (
+        title_basics.alias("tb")
+
+    )
 
 
 def average_rate_per_genre(context: dict[str, DataFrame]) -> DataFrame:
@@ -51,8 +56,6 @@ def average_rate_per_genre(context: dict[str, DataFrame]) -> DataFrame:
 
     return df
 
-# find average ammount of episodes in tv-show's season grouped by it's rating
-# also added total number of episodes analyed grouped by rating for comparison
 def average_episodes_per_rating(context: dict[str, DataFrame]) -> DataFrame:
     title_basics = context["title_basics"]
     episode = context["episode"]
