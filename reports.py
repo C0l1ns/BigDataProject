@@ -51,25 +51,29 @@ def popular_movies_by_country(context: dict[str, DataFrame]) -> DataFrame:
 def average_rate_per_genre(context: dict[str, DataFrame]) -> DataFrame:
     title_basics = context["title_basics"]
     ratings = context["ratings"]
-    title_basics_transformed = (
-        title_basics
+
+    df = (
+        title_basics.alias("tb")
         .withColumn("genre", f.split("genres", ","))
         .drop("genres")
         .withColumn("genre", f.explode("genre"))
-    )
-
-    df = (
-        title_basics_transformed.alias("tb")
-        .filter(f.col("tb.genre") != "\\N")
-        .join(ratings.alias("r"), f.col("r.tconst") == f.col("tb.tconst"))
-        .groupBy("tb.genre")
+        .filter(f.col("genre") != "\\N")
+        .join(ratings.alias("r"), f.col("tb.tconst") == f.col("r.tconst"))
+        .groupBy("genre")
         .agg(
-            f.avg("r.averageRating").alias("AvarageRating"),
+            f.avg("r.averageRating").alias("AverageRating"),
+            f.count("*").alias("MoviesCount"),
         )
-        .withColumn("AvarageRating", f.round("AvarageRating", 1))
+        .select(
+            f.col("genre").alias("Genre"),
+            f.round("AverageRating", 1).alias("AverageRating"),
+            f.col("MoviesCount"),
+        )
+        .orderBy(f.col("MoviesCount").desc())
     )
 
     return df
+
 
 def average_episodes_per_rating(context: dict[str, DataFrame]) -> DataFrame:
     title_basics = context["title_basics"]
@@ -99,3 +103,21 @@ def average_episodes_per_rating(context: dict[str, DataFrame]) -> DataFrame:
     )
 
     return df
+
+
+def total_number_of_movies_each_year_per_genre(context: dict[str, DataFrame]):
+    # maybe rewrite it to find best movie by total rate for each year by genre
+    title_basics = context["title_basics"]
+
+    df = (
+        title_basics.alias("tb")
+        .withColumn("genre", f.split("genres", ","))
+        .drop("genres")
+        .withColumn("genre", f.explode("genre"))
+        .filter((f.col("genre") != "\\N") & (f.col("StartYear").isNotNull()))
+        .groupBy("Genre")
+        .pivot("StartYear")
+        .count()
+    )
+
+    df.write.csv("./report", header=True, mode="overwrite")
