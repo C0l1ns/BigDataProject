@@ -1,5 +1,5 @@
 import pyspark.sql.functions as f
-from pyspark.sql import DataFrame
+from pyspark.sql import DataFrame, Window
 
 
 def popular_movies(context: dict[str, DataFrame]) -> DataFrame:
@@ -28,12 +28,24 @@ def popular_movies(context: dict[str, DataFrame]) -> DataFrame:
 
 
 def popular_movies_by_country(context: dict[str, DataFrame]) -> DataFrame:
-    title_basics = context["title_basics"]
+    akas = context["akas"]
+    ratings = context["ratings"]
+    window = Window.partitionBy("region").orderBy(f.col("numVotes").desc())
 
     df = (
-        title_basics.alias("tb")
-
+        akas.alias("a")
+        .join(ratings.alias("r"), f.col("r.tconst") == f.col("a.titleId"))
+        .withColumn("rowNumber", f.row_number().over(window))
+        .filter(f.col("rowNumber") == 1)
+        .drop(f.col("rowNumber"))
+        .select(
+            f.col("a.region").alias("Region"),
+            f.col("r.numVotes").alias("MaxNumberOfVotes"),
+            f.col("r.averageRating").alias("AvarageRating"),
+        )
     )
+
+    return df
 
 
 def average_rate_per_genre(context: dict[str, DataFrame]) -> DataFrame:
@@ -51,7 +63,10 @@ def average_rate_per_genre(context: dict[str, DataFrame]) -> DataFrame:
         .filter(f.col("tb.genre") != "\\N")
         .join(ratings.alias("r"), f.col("r.tconst") == f.col("tb.tconst"))
         .groupBy("tb.genre")
-        .avg("r.averageRating")
+        .agg(
+            f.avg("r.averageRating").alias("AvarageRating"),
+        )
+        .withColumn("AvarageRating", f.round("AvarageRating", 1))
     )
 
     return df
