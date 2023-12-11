@@ -121,3 +121,33 @@ def total_number_of_movies_each_year_per_genre(context: dict[str, DataFrame]):
     )
 
     df.write.csv("./report", header=True, mode="overwrite")
+
+
+def directors_with_most_films(context: dict[str, DataFrame]) -> DataFrame:
+    title_basics = context["title_basics"]
+    crew = context["crew"]
+    name_basics = context["name_basics"]
+
+    crew_transformed = (
+        crew
+        .withColumn("director", f.split("directors", ","))
+        .drop("directors")
+        .withColumn("director", f.explode("director"))
+    )
+
+    df = (
+        title_basics.alias("tb")
+        .filter(f.col("tb.titleType").isin("tvMovie", "movie"))
+        .join(crew_transformed.alias("c"), f.col("tb.tconst") == f.col("c.tconst"))
+        .join(name_basics.alias("nb"), f.col("c.director") == f.col("nb.nconst"))
+        .groupBy("nb.nconst", "nb.primaryName", "nb.birthYear")
+        .agg(f.count("tb.tconst").alias("NumberOfFilms"))
+        .orderBy(f.desc("NumberOfFilms"))
+        .select(
+            f.col("nb.primaryName").alias("DirectorName"),
+            f.col("nb.birthYear").alias("YearOfBirth"),
+            f.col("NumberOfFilms")
+        )
+    )
+
+    return df
