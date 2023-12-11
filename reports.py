@@ -191,3 +191,29 @@ def top_genres_over_time(context: dict[str, DataFrame]) -> DataFrame:
         .orderBy(f.col("StartYear").desc())
     )
     return df
+
+
+def directors_best_titles(context: dict[str, DataFrame]) -> DataFrame:
+    title_basics = context["title_basics"]
+    name_basics = context["name_basics"]
+    ratings = context["ratings"]
+    crew = context["crew"]
+
+    window = Window.partitionBy("nconst").orderBy(f.col("NumVotes").desc())
+    df = (
+        ratings.alias("r")
+        .join(crew.alias("c"), f.col("r.tconst") == f.col("c.tconst"))
+        .join(name_basics.alias("nm"), f.col("c.directors") == f.col("nm.nconst"))
+        .join(title_basics.alias("tb"), f.col("tb.tconst") == f.col("r.tconst"))
+        .withColumn("TopVoted", f.row_number().over(window))
+        .filter(f.col("TopVoted") == 1)
+        .drop("TopVoted")
+        .select(
+            f.col("nm.primaryName").alias("FullName"),
+            f.col("nm.primaryProfession").alias("PrimaryProfession"),
+            f.col("tb.primaryTitle").alias("MostRatedTittle"),
+            f.col("r.averageRating").alias("Rating"),
+            f.col("tb.startYear").alias("ReleaseDate"),
+        )
+    )
+    df.show()
