@@ -54,9 +54,7 @@ def average_rate_per_genre(context: dict[str, DataFrame]) -> DataFrame:
 
     df = (
         title_basics.alias("tb")
-        .withColumn("genre", f.split("genres", ","))
-        .drop("genres")
-        .withColumn("genre", f.explode("genre"))
+        .withColumn("genre", f.explode(f.split("genres", ",")))
         .filter(f.col("genre") != "\\N")
         .join(ratings.alias("r"), f.col("tb.tconst") == f.col("r.tconst"))
         .groupBy("genre")
@@ -129,8 +127,7 @@ def directors_with_most_films(context: dict[str, DataFrame]) -> DataFrame:
     name_basics = context["name_basics"]
 
     crew_transformed = (
-        crew
-        .withColumn("director", f.split("directors", ","))
+        crew.withColumn("director", f.split("directors", ","))
         .drop("directors")
         .withColumn("director", f.explode("director"))
     )
@@ -146,8 +143,51 @@ def directors_with_most_films(context: dict[str, DataFrame]) -> DataFrame:
         .select(
             f.col("nb.primaryName").alias("DirectorName"),
             f.col("nb.birthYear").alias("YearOfBirth"),
-            f.col("NumberOfFilms")
+            f.col("NumberOfFilms"),
         )
     )
 
+    return df
+
+
+def top_genres_over_time(context: dict[str, DataFrame]) -> DataFrame:
+    title_basics = context["title_basics"]
+    ratings = context["ratings"]
+    window = Window.partitionBy("startYear").orderBy(f.desc("GenreCount"))
+
+    most_popular_genres_over_time = (
+        title_basics.withColumn("genres", f.split("genres", ","))
+        .withColumn("Genre", f.explode("genres"))
+        .filter(
+            (f.col("Genre") != "\\N")
+            & (f.col("startYear").isNotNull())
+            & (f.col("StartYear") <= f.year(f.current_date()))
+        )
+        .groupBy("startYear", "Genre")
+        .agg(f.count("*").alias("GenreCount"))
+        .withColumn("GenreRank", f.row_number().over(window))
+        .filter(f.col("GenreRank") == 1)
+        .select(f.col("startYear").alias("StartYear"), "Genre")
+        .orderBy(f.col("StartYear").desc())
+    )
+
+    top_rated_genres_each_year = (
+        title_basics.alias("tb")
+        .withColumn("Genre", f.split("genres", ",")[0])
+        .filter(f.col("Genre") != "\\N")
+        .join(ratings.alias("r"), f.col("tb.tconst") == f.col("r.tconst"))
+        .groupBy(f.col("tb.startYear"), f.col("Genre"))
+        .agg(f.max("r.numVotes").alias("NumVotes"))
+    )
+
+    df = (
+        most_popular_genres_over_time.alias("p")
+        .join(
+            top_rated_genres_each_year.alias("t"),
+            (f.col("p.StartYear") == f.col("t.StartYear"))
+            & (f.col("p.Genre") == f.col("t.Genre")),
+        )
+        .select(f.col("p.StartYear"), f.col("p.Genre"), f.col("MaxNumVotes"))
+        .orderBy(f.col("StartYear").desc())
+    )
     return df
