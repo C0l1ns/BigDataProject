@@ -104,6 +104,7 @@ def average_episodes_per_rating(context: dict[str, DataFrame]) -> DataFrame:
 
     return df
 
+
 def total_number_of_movies_each_year_per_genre(context: dict[str, DataFrame]):
     # maybe rewrite it to find best movie by total rate for each year by genre
     title_basics = context["title_basics"]
