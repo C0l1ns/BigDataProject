@@ -1,2 +1,3 @@
 Для того щоб кожен раз при білді не використовувати датасети юзайте:\
-`docker run -v ${pwd}/datasets:/datasets/ bigdataproject`
+**bash:** `docker build -t bigdataproject . && docker run -v $(pwd)/datasets:/datasets/ bigdataproject`\
+**cmd:** `docker build -t bigdataproject . && docker run -v ${pwd}/datasets:/datasets/ bigdataproject`

@@ -1,5 +1,5 @@
 import pyspark.sql.functions as f
-from pyspark.sql import DataFrame
+from pyspark.sql import DataFrame, Window
 
 
 def popular_movies(context: dict[str, DataFrame]) -> DataFrame:
@@ -28,33 +28,52 @@ def popular_movies(context: dict[str, DataFrame]) -> DataFrame:
 
 
 def popular_movies_by_country(context: dict[str, DataFrame]) -> DataFrame:
-    title_basics = context["title_basics"]
+    akas = context["akas"]
+    ratings = context["ratings"]
+    window = Window.partitionBy("region").orderBy(f.col("numVotes").desc())
 
     df = (
-        title_basics.alias("tb")
-
+        akas.alias("a")
+        .join(ratings.alias("r"), f.col("r.tconst") == f.col("a.titleId"))
+        .withColumn("rowNumber", f.row_number().over(window))
+        .filter(f.col("rowNumber") == 1)
+        .drop(f.col("rowNumber"))
+        .select(
+            f.col("a.region").alias("Region"),
+            f.col("r.numVotes").alias("MaxNumberOfVotes"),
+            f.col("r.averageRating").alias("AvarageRating"),
+        )
     )
+
+    return df
 
 
 def average_rate_per_genre(context: dict[str, DataFrame]) -> DataFrame:
     title_basics = context["title_basics"]
     ratings = context["ratings"]
-    title_basics_transformed = (
-        title_basics
+
+    df = (
+        title_basics.alias("tb")
         .withColumn("genre", f.split("genres", ","))
         .drop("genres")
         .withColumn("genre", f.explode("genre"))
-    )
-
-    df = (
-        title_basics_transformed.alias("tb")
-        .filter(f.col("tb.genre") != "\\N")
-        .join(ratings.alias("r"), f.col("r.tconst") == f.col("tb.tconst"))
-        .groupBy("tb.genre")
-        .avg("r.averageRating")
+        .filter(f.col("genre") != "\\N")
+        .join(ratings.alias("r"), f.col("tb.tconst") == f.col("r.tconst"))
+        .groupBy("genre")
+        .agg(
+            f.avg("r.averageRating").alias("AverageRating"),
+            f.count("*").alias("MoviesCount"),
+        )
+        .select(
+            f.col("genre").alias("Genre"),
+            f.round("AverageRating", 1).alias("AverageRating"),
+            f.col("MoviesCount"),
+        )
+        .orderBy(f.col("MoviesCount").desc())
     )
 
     return df
+
 
 def average_episodes_per_rating(context: dict[str, DataFrame]) -> DataFrame:
     title_basics = context["title_basics"]
@@ -84,6 +103,24 @@ def average_episodes_per_rating(context: dict[str, DataFrame]) -> DataFrame:
     )
 
     return df
+
+def total_number_of_movies_each_year_per_genre(context: dict[str, DataFrame]):
+    # maybe rewrite it to find best movie by total rate for each year by genre
+    title_basics = context["title_basics"]
+
+    df = (
+        title_basics.alias("tb")
+        .withColumn("genre", f.split("genres", ","))
+        .drop("genres")
+        .withColumn("genre", f.explode("genre"))
+        .filter((f.col("genre") != "\\N") & (f.col("StartYear").isNotNull()))
+        .groupBy("Genre")
+        .pivot("StartYear")
+        .count()
+    )
+
+    df.write.csv("./report", header=True, mode="overwrite")
+
 
 def directors_with_most_films(context: dict[str, DataFrame]) -> DataFrame:
     title_basics = context["title_basics"]
