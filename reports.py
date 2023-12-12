@@ -264,7 +264,7 @@ def top_genres_over_time(context: dict[str, DataFrame]) -> DataFrame:
         .filter(f.col("Genre") != "\\N")
         .join(ratings.alias("r"), f.col("tb.tconst") == f.col("r.tconst"))
         .groupBy(f.col("tb.startYear"), f.col("Genre"))
-        .agg(f.max("r.numVotes").alias("NumVotes"))
+        .agg(f.max("r.numVotes").alias("MaxNumVotes"))
     )
 
     df = (
