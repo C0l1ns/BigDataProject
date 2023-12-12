@@ -72,6 +72,7 @@ def average_rate_per_genre(context: dict[str, DataFrame]) -> DataFrame:
 
     return df
 
+
 def most_popular_title_of_each_actor(context: dict[str, DataFrame]) -> DataFrame:
     principals = context["principals"]
     ratings = context["ratings"]
@@ -97,6 +98,7 @@ def most_popular_title_of_each_actor(context: dict[str, DataFrame]) -> DataFrame
     )
 
     return df
+
 
 def last_film_of_each_director(context: dict[str, DataFrame]) -> DataFrame:
     title_basics = context["title_basics"]
@@ -128,13 +130,11 @@ def actors_who_are_younger_thirty(context: dict[str, DataFrame]) -> DataFrame:
     name_basics = context["name_basics"]
 
     df = (
-        name_basics
-        .withColumn("profession", f.explode(f.split("primaryProfession", ",")))
-        .filter(f.col("profession").isin("actor", "actress"))
-        .filter(
-            (f.col("birthYear") > 1993)
-            & (f.col("deathYear").isNotNull())
+        name_basics.withColumn(
+            "profession", f.explode(f.split("primaryProfession", ","))
         )
+        .filter(f.col("profession").isin("actor", "actress"))
+        .filter((f.col("birthYear") > 1993) & (f.col("deathYear").isNotNull()))
         .select(
             f.col("primaryName").alias("ActorName"),
             f.col("birthYear").alias("YearOfBirth"),
@@ -149,8 +149,7 @@ def titles_available_in_ukraine(context: dict[str, DataFrame]) -> DataFrame:
     akas = context["akas"]
 
     df = (
-        akas
-        .filter(f.col("region") == "UA")
+        akas.filter(f.col("region") == "UA")
         .select(
             f.col("title").alias("Title"),
         )
@@ -196,9 +195,7 @@ def total_number_of_movies_each_year_per_genre(context: dict[str, DataFrame]):
 
     df = (
         title_basics.alias("tb")
-        .withColumn("genre", f.split("genres", ","))
-        .drop("genres")
-        .withColumn("genre", f.explode("genre"))
+        .withColumn("genre", f.explode(f.split("genres", ",")))
         .filter((f.col("genre") != "\\N") & (f.col("StartYear").isNotNull()))
         .groupBy("Genre")
         .pivot("StartYear")
@@ -213,11 +210,7 @@ def directors_with_most_films(context: dict[str, DataFrame]) -> DataFrame:
     crew = context["crew"]
     name_basics = context["name_basics"]
 
-    crew_transformed = (
-        crew.withColumn("director", f.split("directors", ","))
-        .drop("directors")
-        .withColumn("director", f.explode("director"))
-    )
+    crew_transformed = crew.withColumn("director", f.explode(f.split("directors", ",")))
 
     df = (
         title_basics.alias("tb")
@@ -243,8 +236,7 @@ def top_genres_over_time(context: dict[str, DataFrame]) -> DataFrame:
     window = Window.partitionBy("startYear").orderBy(f.desc("GenreCount"))
 
     most_popular_genres_over_time = (
-        title_basics.withColumn("genres", f.split("genres", ","))
-        .withColumn("Genre", f.explode("genres"))
+        title_basics.withColumn("Genre", f.explode(f.split("genres", ",")))
         .filter(
             (f.col("Genre") != "\\N")
             & (f.col("startYear").isNotNull())
@@ -303,6 +295,35 @@ def directors_best_titles(context: dict[str, DataFrame]) -> DataFrame:
             f.col("r.averageRating").alias("Rating"),
             f.col("tb.startYear").alias("ReleaseDate"),
         )
+    )
+
+    return df
+
+
+def crew_analytics(context: dict[str, DataFrame]) -> DataFrame:
+    name_basics = context["name_basics"].alias("nb")
+    principals = context["principals"].alias("p")
+    title_basics = (
+        context["title_basics"]
+        .alias("tb")
+        .withColumn("Genre", f.explode(f.split("genres", ",")))
+    )
+    ratings = context["ratings"].alias("r")
+    window = Window.partitionBy("Genre").orderBy(f.col("AverageRating").desc())
+
+    df = (
+        name_basics.join(principals, f.col("nb.nconst") == f.col("p.nconst"))
+        .join(title_basics, f.col("p.tconst") == f.col("tb.tconst"))
+        .join(ratings, f.col("tb.tconst") == f.col("r.tconst"))
+        .where(f.col("p.category") == "actor")
+        .groupBy("nb.primaryName", "Genre")
+        .agg(
+            f.countDistinct("tb.tconst").alias("NumberOfTitles"),
+            f.round(f.avg("r.averageRating"), 2).alias("AverageRating"),
+            f.collect_list("tb.genres").alias("GenresList"),
+        )
+        .withColumn("GenreRank", f.rank().over(window))
+        .orderBy(f.col("NumberOfTitles").desc())
     )
 
     return df
