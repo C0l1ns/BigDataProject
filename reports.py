@@ -74,6 +74,93 @@ def average_rate_per_genre(context: dict[str, DataFrame]) -> DataFrame:
 
     return df
 
+def most_popular_title_of_each_actor(context: dict[str, DataFrame]) -> DataFrame:
+    principals = context["principals"]
+    ratings = context["ratings"]
+    name_basics = context["name_basics"]
+    title_basics = context["title_basics"]
+
+    df = (
+        principals.alias("p")
+        .filter(f.col("p.category").isin("actor", "actress"))
+        .join(ratings.alias("r"), f.col("p.tconst") == f.col("r.tconst"))
+        .join(name_basics.alias("nb"), f.col("p.nconst") == f.col("nb.nconst"))
+        .join(title_basics.alias("tb"), f.col("p.tconst") == f.col("tb.tconst"))
+        .groupBy("nb.primaryName", "tb.primaryTitle")
+        .agg(
+            f.max("r.numVotes").alias("NumVotes"),
+        )
+        .select(
+            f.col("nb.primaryName").alias("Name"),
+            f.col("tb.primaryTitle").alias("Title"),
+            f.col("NumVotes"),
+        )
+        .orderBy(f.col("NumVotes").desc())
+    )
+
+    return df
+
+def last_film_of_each_director(context: dict[str, DataFrame]) -> DataFrame:
+    title_basics = context["title_basics"]
+    principals = context["principals"]
+    name_basics = context["name_basics"]
+    window = Window.partitionBy("primaryName").orderBy(f.col("startYear").desc())
+
+    df = (
+        title_basics.alias("tb")
+        .filter(f.col("tb.startYear") < 2024)
+        .join(principals.alias("p"), f.col("tb.tconst") == f.col("p.tconst"))
+        .join(name_basics.alias("nb"), f.col("nb.nconst") == f.col("p.nconst"))
+        .filter(f.col("p.category") == "director")
+        .withColumn("rowNumber", f.row_number().over(window))
+        .filter(f.col("rowNumber") == 1)
+        .drop(f.col("rowNumber"))
+        .select(
+            f.col("nb.primaryName").alias("DirectorName"),
+            f.col("tb.startYear").alias("FilmYear"),
+            f.col("tb.primaryTitle").alias("Title"),
+        )
+        .orderBy(f.col("FilmYear").desc())
+    )
+
+    return df
+
+
+def actors_who_are_younger_thirty(context: dict[str, DataFrame]) -> DataFrame:
+    name_basics = context["name_basics"]
+
+    df = (
+        name_basics
+        .withColumn("profession", f.explode(f.split("primaryProfession", ",")))
+        .filter(f.col("profession").isin("actor", "actress"))
+        .filter(
+            (f.col("birthYear") > 1993)
+            & (f.col("deathYear").isNotNull())
+        )
+        .select(
+            f.col("primaryName").alias("ActorName"),
+            f.col("birthYear").alias("YearOfBirth"),
+        )
+        .orderBy(f.col("birthYear").desc())
+    )
+
+    return df
+
+
+def titles_available_in_ukraine(context: dict[str, DataFrame]) -> DataFrame:
+    akas = context["akas"]
+
+    df = (
+        akas
+        .filter(f.col("region") == "UA")
+        .select(
+            f.col("title").alias("Title"),
+        )
+        .orderBy(f.col("Title").asc())
+    )
+
+    return df
+
 
 def average_episodes_per_rating(context: dict[str, DataFrame]) -> DataFrame:
     title_basics = context["title_basics"]
