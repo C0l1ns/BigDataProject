@@ -10,6 +10,8 @@ COPY --from=py3 / /
 ARG PYSPARK_VERSION=3.3.0
 RUN pip --no-cache-dir install pyspark==${PYSPARK_VERSION}
 
-COPY . .
+COPY . /app
+
+WORKDIR /app
 
 CMD python main.py
