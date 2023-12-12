@@ -25,7 +25,5 @@ populate_context(spark, context)
 # directors_with_most_films(context).show()
 # films_with_biggest_crew(context).show()
 # films_in_each_language(context).show()
-most_popular_directors(context).show()
-
-# most popular actor of each genre
-# directors with the most amount of different genres
+# most_popular_directors(context).show()
+directors_with_biggest_amount_of_genres(context).show()

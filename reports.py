@@ -381,3 +381,38 @@ def most_popular_directors(context: dict[str, DataFrame]) -> DataFrame:
     )
 
     return df
+
+def directors_with_biggest_amount_of_genres(context: dict[str, DataFrame]) -> DataFrame:
+    title_basics = context["title_basics"]
+    crew = context["crew"]
+    name_basics = context["name_basics"]
+    ratings = context["ratings"]
+
+    title_basics_transformed = (
+        title_basics.withColumn("genre", f.split("genres", ","))
+        .drop("genres")
+        .withColumn("genre", f.explode("genre"))
+    )
+
+    crew_transformed = (
+        crew.withColumn("director", f.split("directors", ","))
+        .drop("directors")
+        .withColumn("director", f.explode("director"))
+    )
+
+    df = (
+        title_basics_transformed.alias("tb")
+        .filter(f.col("tb.titleType").isin("tvMovie", "movie"))
+        .join(crew_transformed.alias("c"), f.col("tb.tconst") == f.col("c.tconst"))
+        .join(name_basics.alias("nb"), f.col("c.director") == f.col("nb.nconst"))
+        .join(ratings.alias("r"), f.col("tb.tconst") == f.col("r.tconst"))
+        .groupBy("nb.nconst", "nb.primaryName")
+        .agg(f.countDistinct("tb.genre").alias("NumberOfGenres"))
+        .orderBy(f.desc("NumberOfGenres"))
+        .select(
+            f.col("nb.primaryName"),
+            f.col("NumberOfGenres"),
+        )
+    )
+
+    return df
