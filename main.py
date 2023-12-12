@@ -24,8 +24,8 @@ populate_context(spark, context)
 # average_episodes_per_rating(context).show(n=91)
 # directors_with_most_films(context).show()
 # films_with_biggest_crew(context).show()
-films_in_each_language(context).show()
+# films_in_each_language(context).show()
+most_popular_directors(context).show()
 
-# number of films in each language and their average rating
 # most popular actor of each genre
-# actors with the most amount of different genres
+# directors with the most amount of different genres

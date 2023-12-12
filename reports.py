@@ -352,3 +352,32 @@ def films_in_each_language(context: dict[str, DataFrame]) -> DataFrame:
     )
 
     return df
+
+def most_popular_directors(context: dict[str, DataFrame]) -> DataFrame:
+    title_basics = context["title_basics"]
+    crew = context["crew"]
+    name_basics = context["name_basics"]
+    ratings = context["ratings"]
+
+    crew_transformed = (
+        crew.withColumn("director", f.split("directors", ","))
+        .drop("directors")
+        .withColumn("director", f.explode("director"))
+    )
+
+    df = (
+        title_basics.alias("tb")
+        .filter(f.col("tb.titleType").isin("tvMovie", "movie"))
+        .join(crew_transformed.alias("c"), f.col("tb.tconst") == f.col("c.tconst"))
+        .join(name_basics.alias("nb"), f.col("c.director") == f.col("nb.nconst"))
+        .join(ratings.alias("r"), f.col("tb.tconst") == f.col("r.tconst"))
+        .groupBy("nb.nconst", "nb.primaryName")
+        .agg(f.sum("r.numVotes").alias("NumberOfReviews"))
+        .orderBy(f.desc("NumberOfReviews"))
+        .select(
+            f.col("nb.primaryName"),
+            f.col("NumberOfReviews"),
+        )
+    )
+
+    return df
