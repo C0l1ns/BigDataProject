@@ -304,3 +304,31 @@ def directors_best_titles(context: dict[str, DataFrame]) -> DataFrame:
         )
     )
     df.show()
+
+def films_with_biggest_crew(context: dict[str, DataFrame]) -> DataFrame:
+    title_basics = context["title_basics"]
+    crew = context["crew"]
+    ratings = context["ratings"]
+
+    crew_transformed = (
+        crew.withColumn("director", f.split("directors", ","))
+        .drop("directors")
+        .withColumn("director", f.explode("director"))
+    )
+
+    df = (
+        title_basics.alias("tb")
+        .filter(f.col("tb.titleType").isin("tvMovie", "movie"))
+        .join(ratings.alias("r"), f.col("tb.tconst") == f.col("r.tconst"))
+        .filter(f.col("r.numVotes") > 1000)
+        .join(crew_transformed.alias("c"), f.col("tb.tconst") == f.col("c.tconst"))
+        .groupBy("tb.tconst", "tb.primaryTitle")
+        .agg(f.countDistinct("c.director").alias("CrewSize"))
+        .orderBy(f.desc("CrewSize"))
+        .select(
+            f.col("tb.primaryTitle").alias("Title"),
+            f.col("CrewSize"),
+        )
+    )
+
+    return df
