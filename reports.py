@@ -82,10 +82,7 @@ def most_popular_title_of_each_actor(context: dict[str, DataFrame]) -> DataFrame
 
     df = (
         principals.alias("p")
-        .filter(
-            (f.col("p.category") == "actor")
-            | (f.col("p.category") == "actress")
-        )
+        .filter(f.col("p.category").isin("actor", "actress"))
         .join(ratings.alias("r"), f.col("p.tconst") == f.col("r.tconst"))
         .join(name_basics.alias("nb"), f.col("p.nconst") == f.col("nb.nconst"))
         .join(title_basics.alias("tb"), f.col("p.tconst") == f.col("tb.tconst"))
@@ -132,18 +129,10 @@ def last_film_of_each_director(context: dict[str, DataFrame]) -> DataFrame:
 def actors_who_are_younger_thirty(context: dict[str, DataFrame]) -> DataFrame:
     name_basics = context["name_basics"]
 
-    name_basics_transformed = (
-        name_basics
-        .withColumn("profession", f.split("primaryProfession", ","))
-        .drop("primaryProfession")
-        .withColumn("profession", f.explode("profession"))
-    )
     df = (
-        name_basics_transformed
-        .filter(
-            (f.col("profession") == "actor")
-            | (f.col("profession") == "actress")
-        )
+        name_basics
+        .withColumn("profession", f.explode(f.split("primaryProfession", ",")))
+        .filter(f.col("profession").isin("actor", "actress"))
         .filter(
             (f.col("birthYear") > 1993)
             & (f.col("deathYear").isNotNull())
