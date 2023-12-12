@@ -205,7 +205,7 @@ def total_number_of_movies_each_year_per_genre(context: dict[str, DataFrame]):
         .count()
     )
 
-    df.write.csv("./report", header=True, mode="overwrite")
+    return df
 
 
 def directors_with_most_films(context: dict[str, DataFrame]) -> DataFrame:
@@ -277,6 +277,7 @@ def top_genres_over_time(context: dict[str, DataFrame]) -> DataFrame:
         .select(f.col("p.StartYear"), f.col("p.Genre"), f.col("MaxNumVotes"))
         .orderBy(f.col("StartYear").desc())
     )
+
     return df
 
 
@@ -303,4 +304,5 @@ def directors_best_titles(context: dict[str, DataFrame]) -> DataFrame:
             f.col("tb.startYear").alias("ReleaseDate"),
         )
     )
-    df.show()
+
+    return df
