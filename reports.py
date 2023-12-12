@@ -305,6 +305,7 @@ def directors_best_titles(context: dict[str, DataFrame]) -> DataFrame:
     )
     df.show()
 
+
 def films_with_biggest_crew(context: dict[str, DataFrame]) -> DataFrame:
     title_basics = context["title_basics"]
     crew = context["crew"]
@@ -328,6 +329,25 @@ def films_with_biggest_crew(context: dict[str, DataFrame]) -> DataFrame:
         .select(
             f.col("tb.primaryTitle").alias("Title"),
             f.col("CrewSize"),
+        )
+    )
+
+    return df
+
+
+def films_in_each_language(context: dict[str, DataFrame]) -> DataFrame:
+    title_basics = context["title_basics"]
+    akas = context["akas"]
+
+    df = (
+        title_basics.alias("tb")
+        .join(akas.alias("a"), f.col("tb.tconst") == f.col("a.titleId"))
+        .groupBy("a.language")
+        .agg(f.count("a.titleId").alias("NumberOfFilms"))
+        .orderBy(f.desc("NumberOfFilms"))
+        .select(
+            f.col("a.language"),
+            f.col("NumberOfFilms"),
         )
     )
 
