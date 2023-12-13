@@ -336,7 +336,7 @@ def actresses_younger_than_eleven(context: dict[str, DataFrame]) -> DataFrame:
 
     return df
 
-def actors_most_episodes(context: dict[str, DataFrame]) -> DataFrame:
+def top10_actors_with_most_episodes(context: dict[str, DataFrame]) -> DataFrame:
     principals = context["principals"]
     episodes = context["episode"]
 
