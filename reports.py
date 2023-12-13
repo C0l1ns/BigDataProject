@@ -278,6 +278,228 @@ def actor_analytics(context: dict[str, DataFrame]) -> DataFrame:
 
     return df
 
+
+def actor_collaborations(context: dict[str, DataFrame]) -> DataFrame:
+    name_basics_a = context["name_basics"].alias("a")
+    principals_a = context["principals"].alias("pa")
+    name_basics_b = context["name_basics"].alias("b")
+    principals_b = context["principals"].alias("pb")
+
+    df = (
+        principals_a.join(name_basics_a, f.col("pa.nconst") == f.col("a.nconst"))
+        .join(
+            principals_b,
+            (f.col("pa.tconst") == f.col("pb.tconst"))
+            & (f.col("pa.nconst") != f.col("pb.nconst")),
+        )
+        .join(name_basics_b, f.col("pb.nconst") == f.col("b.nconst"))
+        .filter((f.col("pa.category") == "actor") & (f.col("pb.category") == "actor"))
+        .select(
+            f.least(f.col("a.primaryName"), f.col("b.primaryName")).alias("Actor1"),
+            f.greatest(f.col("a.primaryName"), f.col("b.primaryName")).alias("Actor2"),
+            f.col("pa.tconst"),
+        )
+        .drop_duplicates()
+        .groupBy("Actor1", "Actor2")
+        .agg(f.count("*").alias("NumberOfCollaborations"))
+        .filter(f.col("NumberOfCollaborations") > 1)
+        .orderBy(f.col("NumberOfCollaborations").desc(), "Actor1", "Actor2")
+    )
+
+    return df
+
+
+# Danylo
+
+def average_episodes_per_rating(context: dict[str, DataFrame]) -> DataFrame:
+    title_basics = context["title_basics"]
+    episode = context["episode"]
+    ratings = context["ratings"]
+
+    df = (
+        title_basics.alias("tb")
+        .join(episode.alias("e"), f.col("tb.tconst") == f.col("e.parentTconst"))
+        .join(ratings.alias("r"), f.col("tb.tconst") == f.col("r.tconst"))
+        .groupBy("r.averageRating", "tb.tconst", "e.seasonNumber")
+        .agg(
+            f.avg("e.episodeNumber").alias("AverageEpisodes"),
+            f.count("e.episodeNumber").alias("NumberOfEpisodes"),
+        )
+        .groupBy("r.averageRating")
+        .agg(
+            f.avg("AverageEpisodes").alias("AverageEpisodes"),
+            f.sum("NumberOfEpisodes").alias("NumberOfEpisodes"),
+        )
+        .select(
+            f.col("r.averageRating").alias("rating"),
+            f.round("AverageEpisodes", 1).alias("averageEpisodes"),
+            f.round("NumberOfEpisodes", 1).alias("numberOfEpisodes"),
+        )
+        .orderBy(f.desc("r.averageRating"))
+    )
+
+    return df
+
+
+def last_and_least_successful_film_of_each_director(context: dict[str, DataFrame]) -> DataFrame:
+    title_basics = context["title_basics"]
+    crew = context["crew"]
+    name_basics = context["name_basics"]
+    ratings = context["ratings"]
+
+    crew_transformed = (
+        crew.withColumn("director", f.split("directors", ","))
+        .drop("directors")
+        .withColumn("director", f.explode("director"))
+    )
+
+    window_last_film = Window.partitionBy("nconst").orderBy(f.col("startYear").desc())
+    window_least_successful_film = Window.partitionBy("nconst").orderBy(f.col("numVotes").asc())
+
+    df = (
+        title_basics.alias("tb")
+        .filter(f.col("tb.titleType").isin("tvMovie", "movie"))
+        .filter(f.col("tb.startYear") > 1000)
+        .join(crew_transformed.alias("c"), f.col("tb.tconst") == f.col("c.tconst"))
+        .join(name_basics.alias("nb"), f.col("c.director") == f.col("nb.nconst"))
+        .join(ratings.alias("r"), f.col("tb.tconst") == f.col("r.tconst"))
+        .withColumn("rowNumber1", f.row_number().over(window_last_film))
+        .filter(f.col("rowNumber1") == 1)
+        .withColumn("rowNumber2", f.row_number().over(window_least_successful_film))
+        .filter(f.col("rowNumber2") == 1)
+        .select(
+            f.col("nb.primaryName").alias("DirectorName"),
+            f.col("nb.birthYear").alias("YearOfBirth"),
+            f.col("tb.startYear").alias("YearOfFilm"),
+            f.col("r.numVotes").alias("NumberOfVotes"),
+        )
+    )
+
+    return df
+
+
+def directors_with_biggest_amount_of_genres(context: dict[str, DataFrame]) -> DataFrame:
+    title_basics = context["title_basics"]
+    crew = context["crew"]
+    name_basics = context["name_basics"]
+    ratings = context["ratings"]
+
+    title_basics_transformed = (
+        title_basics.withColumn("genre", f.split("genres", ","))
+        .drop("genres")
+        .withColumn("genre", f.explode("genre"))
+    )
+
+    crew_transformed = (
+        crew.withColumn("director", f.split("directors", ","))
+        .drop("directors")
+        .withColumn("director", f.explode("director"))
+    )
+
+    df = (
+        title_basics_transformed.alias("tb")
+        .filter(f.col("tb.titleType").isin("tvMovie", "movie"))
+        .join(crew_transformed.alias("c"), f.col("tb.tconst") == f.col("c.tconst"))
+        .join(name_basics.alias("nb"), f.col("c.director") == f.col("nb.nconst"))
+        .join(ratings.alias("r"), f.col("tb.tconst") == f.col("r.tconst"))
+        .groupBy("nb.nconst", "nb.primaryName")
+        .agg(f.countDistinct("tb.genre").alias("NumberOfGenres"))
+        .orderBy(f.desc("NumberOfGenres"))
+        .select(
+            f.col("nb.primaryName"),
+            f.col("NumberOfGenres"),
+        )
+    )
+
+    return df
+
+
+def films_with_biggest_crew(context: dict[str, DataFrame]) -> DataFrame:
+    title_basics = context["title_basics"]
+    crew = context["crew"]
+    ratings = context["ratings"]
+
+    crew_transformed = (
+        crew.withColumn("director", f.split("directors", ","))
+        .drop("directors")
+        .withColumn("director", f.explode("director"))
+    )
+
+    df = (
+        title_basics.alias("tb")
+        .filter(f.col("tb.titleType").isin("tvMovie", "movie"))
+        .join(ratings.alias("r"), f.col("tb.tconst") == f.col("r.tconst"))
+        .filter(f.col("r.numVotes") > 1000)
+        .join(crew_transformed.alias("c"), f.col("tb.tconst") == f.col("c.tconst"))
+        .groupBy("tb.tconst", "tb.primaryTitle")
+        .agg(f.countDistinct("c.director").alias("CrewSize"))
+        .orderBy(f.desc("CrewSize"))
+        .select(
+            f.col("tb.primaryTitle").alias("Title"),
+            f.col("CrewSize"),
+        )
+    )
+
+    return df
+
+
+def most_popular_directors(context: dict[str, DataFrame]) -> DataFrame:
+    title_basics = context["title_basics"]
+    crew = context["crew"]
+    name_basics = context["name_basics"]
+    ratings = context["ratings"]
+
+    crew_transformed = (
+        crew.withColumn("director", f.split("directors", ","))
+        .drop("directors")
+        .withColumn("director", f.explode("director"))
+    )
+
+    df = (
+        title_basics.alias("tb")
+        .filter(f.col("tb.titleType").isin("tvMovie", "movie"))
+        .join(crew_transformed.alias("c"), f.col("tb.tconst") == f.col("c.tconst"))
+        .join(name_basics.alias("nb"), f.col("c.director") == f.col("nb.nconst"))
+        .join(ratings.alias("r"), f.col("tb.tconst") == f.col("r.tconst"))
+        .groupBy("nb.nconst", "nb.primaryName")
+        .agg(f.sum("r.numVotes").alias("NumberOfReviews"))
+        .orderBy(f.desc("NumberOfReviews"))
+        .select(
+            f.col("nb.primaryName"),
+            f.col("NumberOfReviews"),
+        )
+    )
+
+    return df
+
+
+def directors_with_most_films(context: dict[str, DataFrame]) -> DataFrame:
+    title_basics = context["title_basics"]
+    crew = context["crew"]
+    name_basics = context["name_basics"]
+
+    crew_transformed = crew.withColumn("director", f.explode(f.split("directors", ",")))
+
+    df = (
+        title_basics.alias("tb")
+        .filter(f.col("tb.titleType").isin("tvMovie", "movie"))
+        .join(crew_transformed.alias("c"), f.col("tb.tconst") == f.col("c.tconst"))
+        .join(name_basics.alias("nb"), f.col("c.director") == f.col("nb.nconst"))
+        .groupBy("nb.nconst", "nb.primaryName", "nb.birthYear")
+        .agg(f.count("tb.tconst").alias("NumberOfFilms"))
+        .orderBy(f.desc("NumberOfFilms"))
+        .select(
+            f.col("nb.primaryName").alias("DirectorName"),
+            f.col("nb.birthYear").alias("YearOfBirth"),
+            f.col("NumberOfFilms"),
+        )
+    )
+
+    return df
+
+# Max
+
+
 # Danylo
 
 def average_episodes_per_rating(context: dict[str, DataFrame]) -> DataFrame:
