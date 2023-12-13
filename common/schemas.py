@@ -19,7 +19,7 @@ TITLE_BASICS_SCHEMA = t.StructType(
         t.StructField("titleType", t.StringType()),
         t.StructField("primaryTitle", t.StringType()),
         t.StructField("originalTitle", t.StringType()),
-        t.StructField("isAdult", t.BooleanType()),
+        t.StructField("isAdult", t.IntegerType()),
         t.StructField("startYear", t.IntegerType()),
         t.StructField("endYear", t.IntegerType()),
         t.StructField("runtimeMinutes", t.DoubleType()),

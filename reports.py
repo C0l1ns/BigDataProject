@@ -306,3 +306,121 @@ def directors_best_titles(context: dict[str, DataFrame]) -> DataFrame:
     )
 
     return df
+
+def adult_titles_shorter_then_five_min(context: dict[str, DataFrame]) -> DataFrame:
+    title_basics = context["title_basics"]
+
+    df = (
+        title_basics
+        .filter((f.col("isAdult") == 1)
+                & (f.col("runtimeMinutes") < 5))
+        .select(
+            f.col("originalTitle").alias("Title"),
+            f.col("runtimeMinutes").alias("Minutes"),
+        )
+        .orderBy(f.col("Minutes").asc())
+    )
+
+    return df
+
+def actresses_younger_than_eleven(context: dict[str, DataFrame]) -> DataFrame:
+    name_basics = context["name_basics"]
+
+    df = (
+        name_basics
+        .withColumn("profession", f.explode(f.split("primaryProfession", ",")))
+        .filter(f.col("profession") == "actress")
+        .filter(
+            (f.col("birthYear").isNotNull()
+            & (f.col("birthYear") > 2012))
+        )
+        .select(
+            f.col("primaryName").alias("ActressName"),
+            f.col("birthYear").alias("YearOfBirth")
+        )
+        .orderBy(f.col("birthYear").asc())
+    )
+
+    return df
+
+def actors_most_episodes(context: dict[str, DataFrame]) -> DataFrame:
+    principals = context["principals"]
+    episodes = context["episode"]
+
+    df = (
+        principals
+        .join(episodes, "tconst")
+        .filter(f.col("category").isin("actor", "actress"))
+        .groupBy("nconst")
+        .count()
+        .orderBy(f.col("count").desc())
+        .select(f.col("nconst").alias("ActorID"), f.col("count").alias("EpisodeCount"))
+        .limit(10)
+    )
+
+    return df
+
+def recent_movies_with_ratings(context: dict[str, DataFrame]) -> DataFrame:
+    title_basics = context["title_basics"]
+    ratings = context["ratings"]
+
+    df = (
+        title_basics
+        .join(ratings, "tconst")
+        .filter(f.col("titleType") == "movie")
+        .filter((f.col("startYear") >= 2020) & (f.col("startYear") <= 2022))
+        .groupBy("primaryTitle")
+        .agg(f.avg("averageRating").alias("AverageRating"))
+    )
+
+    return df
+
+def best_movie_in_actor_career(context: dict[str, DataFrame]) -> DataFrame:
+    principals = context["principals"]
+    ratings = context["ratings"]
+    title_basics = context["title_basics"]
+    name_basics = context["name_basics"]
+
+    window = Window.partitionBy("p.nconst").orderBy(f.col("r.averageRating").desc())
+
+    df = (
+        principals.alias("p")
+        .join(ratings.alias("r"), f.col("p.tconst") == f.col("r.tconst"))
+        .join(title_basics.alias("tb"), f.col("r.tconst") == f.col("tb.tconst"))
+        .join(name_basics.alias("nm"), f.col("p.nconst") == f.col("nm.nconst"))
+        .withColumn("Rank", f.row_number().over(window))
+        .filter(f.col("Rank") == 1)
+        .drop("Rank")
+        .select(
+            f.col("nm.primaryName").alias("ActorName"),
+            f.col("tb.primaryTitle").alias("TopRatedMovie"),
+            f.col("r.averageRating").alias("Rating"),
+            f.col("tb.startYear").alias("ReleaseYear")
+        )
+    )
+
+    return df
+
+
+def latest_movie_for_each_actor(context: dict[str, DataFrame]) -> DataFrame:
+    principals = context["principals"]
+    title_basics = context["title_basics"]
+    name_basics = context["name_basics"]
+
+    window = Window.partitionBy("p.nconst").orderBy(f.col("tb.startYear").desc())
+
+    df = (
+        principals.alias("p")
+        .join(title_basics.alias("tb"), f.col("p.tconst") == f.col("tb.tconst"))
+        .join(name_basics.alias("nm"), f.col("p.nconst") == f.col("nm.nconst"))
+        .withColumn("Rank", f.row_number().over(window))
+        .filter(f.col("Rank") == 1)
+        .drop("Rank")
+        .select(
+            f.col("nm.primaryName").alias("ActorName"),
+            f.col("tb.primaryTitle").alias("LatestMovie"),
+            f.col("tb.startYear").alias("ReleaseYear")
+        )
+    )
+
+    return df
