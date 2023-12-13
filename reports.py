@@ -1,5 +1,6 @@
 import pyspark.sql.functions as f
 from pyspark.sql import DataFrame, Window
+from pyspark.sql.types import StringType
 
 
 def popular_movies(context: dict[str, DataFrame]) -> DataFrame:
@@ -300,7 +301,7 @@ def directors_best_titles(context: dict[str, DataFrame]) -> DataFrame:
     return df
 
 
-def crew_analytics(context: dict[str, DataFrame]) -> DataFrame:
+def actor_analytics(context: dict[str, DataFrame]) -> DataFrame:
     name_basics = context["name_basics"].alias("nb")
     principals = context["principals"].alias("p")
     title_basics = (
@@ -315,7 +316,8 @@ def crew_analytics(context: dict[str, DataFrame]) -> DataFrame:
         name_basics.join(principals, f.col("nb.nconst") == f.col("p.nconst"))
         .join(title_basics, f.col("p.tconst") == f.col("tb.tconst"))
         .join(ratings, f.col("tb.tconst") == f.col("r.tconst"))
-        .where(f.col("p.category") == "actor")
+        .filter((f.col("p.category") == "actor") & (f.col("tb.titleType") == "movie"))
+        .filter(f.col("Genre") != "\\N")
         .groupBy("nb.primaryName", "Genre")
         .agg(
             f.countDistinct("tb.tconst").alias("NumberOfTitles"),
@@ -324,6 +326,7 @@ def crew_analytics(context: dict[str, DataFrame]) -> DataFrame:
         )
         .withColumn("GenreRank", f.rank().over(window))
         .orderBy(f.col("NumberOfTitles").desc())
+        .withColumn("GenresList", f.col("GenresList").cast(StringType()))
     )
 
     return df
