@@ -16,4 +16,4 @@ function_names = [func[0] for func in functions]
 
 for function_name in function_names:
     func = getattr(reports, function_name)
-    func(context).write.csv(f'reports/{function_name}')
+    func(context).write.csv(f"reports/{function_name}", header=True, mode="overwrite")
