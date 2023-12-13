@@ -335,23 +335,42 @@ def films_with_biggest_crew(context: dict[str, DataFrame]) -> DataFrame:
     return df
 
 
-def films_in_each_language(context: dict[str, DataFrame]) -> DataFrame:
+def last_and_least_successful_film_of_each_director(context: dict[str, DataFrame]) -> DataFrame:
     title_basics = context["title_basics"]
-    akas = context["akas"]
+    crew = context["crew"]
+    name_basics = context["name_basics"]
+    ratings = context["ratings"]
+
+    crew_transformed = (
+        crew.withColumn("director", f.split("directors", ","))
+        .drop("directors")
+        .withColumn("director", f.explode("director"))
+    )
+
+    window_last_film = Window.partitionBy("nconst").orderBy(f.col("startYear").desc())
+    window_least_successful_film = Window.partitionBy("nconst").orderBy(f.col("numVotes").asc())
 
     df = (
         title_basics.alias("tb")
-        .join(akas.alias("a"), f.col("tb.tconst") == f.col("a.titleId"))
-        .groupBy("a.language")
-        .agg(f.count("a.titleId").alias("NumberOfFilms"))
-        .orderBy(f.desc("NumberOfFilms"))
+        .filter(f.col("tb.titleType").isin("tvMovie", "movie"))
+        .filter(f.col("tb.startYear") > 1000)
+        .join(crew_transformed.alias("c"), f.col("tb.tconst") == f.col("c.tconst"))
+        .join(name_basics.alias("nb"), f.col("c.director") == f.col("nb.nconst"))
+        .join(ratings.alias("r"), f.col("tb.tconst") == f.col("r.tconst"))
+        .withColumn("rowNumber1", f.row_number().over(window_last_film))
+        .filter(f.col("rowNumber1") == 1)
+        .withColumn("rowNumber2", f.row_number().over(window_least_successful_film))
+        .filter(f.col("rowNumber2") == 1)
         .select(
-            f.col("a.language"),
-            f.col("NumberOfFilms"),
+            f.col("nb.primaryName").alias("DirectorName"),
+            f.col("nb.birthYear").alias("YearOfBirth"),
+            f.col("tb.startYear").alias("YearOfFilm"),
+            f.col("r.numVotes").alias("NumberOfVotes"),
         )
     )
 
     return df
+
 
 def most_popular_directors(context: dict[str, DataFrame]) -> DataFrame:
     title_basics = context["title_basics"]
@@ -381,6 +400,7 @@ def most_popular_directors(context: dict[str, DataFrame]) -> DataFrame:
     )
 
     return df
+
 
 def directors_with_biggest_amount_of_genres(context: dict[str, DataFrame]) -> DataFrame:
     title_basics = context["title_basics"]
