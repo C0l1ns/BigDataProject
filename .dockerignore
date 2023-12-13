@@ -1,2 +1,5 @@
 .gitignore
+/.git
+/.idea
 /datasets
+/reports
