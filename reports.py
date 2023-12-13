@@ -330,3 +330,33 @@ def actor_analytics(context: dict[str, DataFrame]) -> DataFrame:
     )
 
     return df
+
+
+def actor_collaborations(context: dict[str, DataFrame]) -> DataFrame:
+    name_basics_a = context["name_basics"].alias("a")
+    principals_a = context["principals"].alias("pa")
+    name_basics_b = context["name_basics"].alias("b")
+    principals_b = context["principals"].alias("pb")
+
+    df = (
+        principals_a.join(name_basics_a, f.col("pa.nconst") == f.col("a.nconst"))
+        .join(
+            principals_b,
+            (f.col("pa.tconst") == f.col("pb.tconst"))
+            & (f.col("pa.nconst") != f.col("pb.nconst")),
+        )
+        .join(name_basics_b, f.col("pb.nconst") == f.col("b.nconst"))
+        .filter((f.col("pa.category") == "actor") & (f.col("pb.category") == "actor"))
+        .select(
+            f.least(f.col("a.primaryName"), f.col("b.primaryName")).alias("Actor1"),
+            f.greatest(f.col("a.primaryName"), f.col("b.primaryName")).alias("Actor2"),
+            f.col("pa.tconst"),
+        )
+        .drop_duplicates()
+        .groupBy("Actor1", "Actor2")
+        .agg(f.count("*").alias("NumberOfCollaborations"))
+        .filter(f.col("NumberOfCollaborations") > 1)
+        .orderBy(f.col("NumberOfCollaborations").desc(), "Actor1", "Actor2")
+    )
+
+    return df
